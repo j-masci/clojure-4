@@ -1,10 +1,14 @@
 (ns scratch)
 
+(def games (atom [{}]))
 
-(def my-functions (atom {}))
+(defn update-game
+  ([f] (swap! games (fn [prev] (conj @games (f (last @games)))))))
 
-(swap! my-functions assoc :fn1 #(println "fn1..."))
-(swap! my-functions assoc :fn2 #(println "fn2..."))
-(swap! my-functions assoc :fn3 #(println "fn3..."))
+(update-game (fn [p] (assoc p :fuck 12)))
 
-(defn my-app [the-fns] (println "the app..."))
+(update-game (fn [p] (assoc p :fuck 13)))
+
+(update-game (fn [p] (assoc p :asd 133)))
+
+(println @games)
