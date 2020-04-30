@@ -29,18 +29,6 @@
              :draw (fn [p] ())
              })
 
-
-
-; entities......
-; game state... reducer ?
-; entity state / reducer ?
-; do we need pure...
-; paint function does what.. loops through entities?
-; do entities have draw functions or are they just data that we'll know how
-; to draw (and could have a draw function if needed...).. it seems very inconvenient
-; to not have a draw function on the entity itself... where else does the code go that
-; knows how to draw the entity
-
 (defn paint [canvas g2d]
   (do
     (gr/draw g2d (gr/line 0 0 200 400) (style [100 23 250 255] 3))
