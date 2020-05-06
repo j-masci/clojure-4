@@ -11,9 +11,9 @@
 
 (update-game #(update % :entities conj "new-ent"))
 
-(update-game (fn [p] (assoc p :fuck 12)))
+(update-game (fn [p] (assoc p :asdf 12)))
 
-(update-game (fn [p] (assoc p :fuck 13)))
+(update-game (fn [p] (assoc p :asdf 13)))
 
 (update-game (fn [p] (assoc-in p [:asd :qwer] 5555)))
 
@@ -22,9 +22,9 @@
 ;{}
 ;{:entities []}
 ;{:entities [new-ent]}
-;{:entities [new-ent], :fuck 12}
-;{:entities [new-ent], :fuck 13}
-;{:entities [new-ent], :fuck 13, :asd {:qwer 5555}}
+;{:entities [new-ent], :asdf 12}
+;{:entities [new-ent], :asdf 13}
+;{:entities [new-ent], :asdf 13, :asd {:qwer 5555}}
 
 (map (fn [a b] (str a "." b)) (list 1 2 3) (list 99 99 99))
 ; ("1.99" "2.99" "3.99")
@@ -141,6 +141,8 @@
 
 (defmethod -func 10 [a b] (do (println "a: " a) (println "b: " b)))
 
+(methods -func)
+
 (-func 10 20)
 ;a:  10
 ;b:  20
@@ -173,5 +175,12 @@
 (-> 25 (+ 5) (+ 9) (+ 10))
 ; 49
 
-(-> [5 3 12 10] (mapv))
+(macroexpand '(-> 25 (+ 5) (+ 9) (+ 10)))
+; (+ (+ (+ 25 5) 9) 10)
 
+; not like this apparently..
+;(def *thing* ^:dynamic 32)
+;(def *thing* 43)
+;(def *thing* 55)
+
+; (defstruct mystruct :hi :hello)
