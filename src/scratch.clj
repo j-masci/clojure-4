@@ -183,4 +183,10 @@
 ;(def *thing* 43)
 ;(def *thing* 55)
 
+(Thread/sleep 100)
+
+; invoke static method
+; (javax.swing.JPanel/isLightweightComponent 23)
+
+
 ; (defstruct mystruct :hi :hello)

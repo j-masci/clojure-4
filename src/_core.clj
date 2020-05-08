@@ -2,6 +2,7 @@
   (:require
     [clojure.core.matrix :as m]
     [seesaw.core :as ss]
+    [seesaw.options :as ss.options]
     [seesaw.graphics :as gr]
     [seesaw.color :as color]
     ;[jdk.awt.core]
@@ -29,17 +30,6 @@
              :pos  [400 400]
              :vel  [1 1]
              :acc  [1 1]})
-
-; blank state, see init-state
-(def state
-  {:step       0
-   :delta-time 0
-   :config     {}
-   :ents   [player]
-   ; wondering if there's a way to not include these mutable objects in our immutable state...
-   :canvas     nil
-   :panel      nil
-   :frame      nil})
 
 (defn integrate [ent]
   (-> ent
@@ -72,39 +62,61 @@
       (update :step inc)
       update-ents))
 
-(defn draw [state]
-  (draw-ents state))
+; create a paint function via state
+(defn make-paint-fn [state]
+  (fn [canvas g2d]
+    (println "Paint: " (:step state))
+    (doto g2d
+      (gr/draw (gr/line 0 0 200 400) (style [100 23 250 255] 3))
+      (.drawString (str "Step: " (:step state)) 200 200))))
 
-(defn paint [canvas g2d]
-  (doto g2d
-    (gr/draw (gr/line 0 0 200 400) (style [100 23 250 255] 3))
-    (.drawString "clojure-4" 200 200)))
+(defn make-frame [] (let [paint-fn (make-paint-fn {})
+                          canvas (ss/canvas :id "canvas" :background "#EBEBEB" :paint paint-fn)
+                          panel (ss/border-panel :hgap 1 :vgap 1 :border 3 :center canvas)
+                          frame (ss/frame
+                                  :width 1200
+                                  :height 900
+                                  :title "Clojure-4"
+                                  :on-close :exit
+                                  :content panel)]
+                      [canvas panel frame]))
 
-(def canvas (ss/canvas :id "canvas" :background "#EBEBEB" :paint paint))
+(def -frame-etc (make-frame))
+(def canvas (-frame-etc 0))
+(def panel (-frame-etc 1))
+(def frame (-frame-etc 2))
 
-; a JPanel object
-(def panel (ss/border-panel :hgap 1 :vgap 1 :border 3 :center canvas))
+; set the paint fn on the canvas
+(defn set-paint-fn [f] (ss.options/apply-options canvas {:paint f}))
 
-(def frame (ss/frame
-             :width 1200
-             :height 900
-             :title "Clojure-4"
-             :on-close :exit
-             :content panel))
+; repaint via state
+(defn paint [state] (set-paint-fn (make-paint-fn state)) (ss/repaint! canvas))
 
-; initialize state after dependencies are defined
-(defn init-state [state]
-  (-> state
-      ; (assoc :ents (conj (:ents state) player))
-      (assoc :canvas canvas)
-      (assoc :panel panel)
-      (assoc :frame frame)))
+; updates and/or frames per second
+(def ^:dynamic *ups* 2)
+
+(defn nano-seconds-per-frame [ups]
+  (if (> ups 0) (int (* 1000000000 (float (/ 1 ups)))) 0))
+
+; blank state, see init-state
+(def state
+  {:step       0
+   :delta-time 0
+   :config     {}
+   :ents       [player]})
+
+(defn run [state]
+  (let [t1 (System/nanoTime)
+        next-state (step state)
+        _ (paint next-state)
+        t2 (System/nanoTime)
+        diff (- t2 t1)
+        sleep-for-ns (- (nano-seconds-per-frame *ups*) diff)]
+    (do
+      (when (> sleep-for-ns 0) (Thread/sleep (long (/ sleep-for-ns 1000000))))
+      (recur next-state))))
 
 (defn -main [& args]
   (println "-MAIN")
-  (let
-    [state (init-state state)]
-    (ss/invoke-later
-      (-> frame ss/show!)
-      )))
+  (ss/invoke-later (ss/show! frame)))
 
