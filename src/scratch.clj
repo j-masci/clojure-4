@@ -189,4 +189,28 @@
 ; (javax.swing.JPanel/isLightweightComponent 23)
 
 
+
+(defn -f1 [] (println "-f1"))
+
+(defn -f2 [] (do (println "-f2") (-f1)))
+
+(-f2)
+; -f2
+; -f1
+
+(defn -f1 [] (println "The new -f1"))
+(-f2)
+; -f2
+; The new -f1
+
+(def -a-value 100)
+(def -my-map {:a 42 :b -a-value})
+(println -my-map)
+; {:a 42, :b 100}
+
+(def -a-value 200)
+(println -my-map)
+; {:a 42, :b 100} (same)
+
+
 ; (defstruct mystruct :hi :hello)
