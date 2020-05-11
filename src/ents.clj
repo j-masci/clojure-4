@@ -1,5 +1,7 @@
 (ns ents
-  (:require [clojure.core.matrix :as m]))
+  (:require [clojure.core.matrix :as m]
+            [seesaw.graphics :as gr])
+  (:use globals))
 
 (def player {:type :player
              :pos  [500 500]
@@ -13,10 +15,9 @@
 
 (defmulti draw (fn [ent g] (:type ent)))
 
-(defmacro g [coll & props] (list get-in coll (into [] props)))
-
 (defmethod draw
   :player
   [ent g2d]
   (doto g2d
-    (.drawString (str (:pos ent)) (get-in ent [:pos 0]) (get-in ent [:pos 1]))))
+    (gr/draw (gr/circle (in ent :pos 0) (in ent :pos 1) 10) (utils/gr.style [100 100 100 250] 1))
+    (.drawString (str (:pos ent)) 50 50)))

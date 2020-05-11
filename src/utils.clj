@@ -3,7 +3,7 @@
             [seesaw.color :as color]))
 
 ; style object which is 4th param of gr/draw
-(defn graphics.style
+(defn gr.style
   ([[r g b a]] (gr/style [r g b a] 1))
   ([[r g b a] width] (let [c (color/color r g b (if (= a nil) 255 a))]
                        (gr/style
