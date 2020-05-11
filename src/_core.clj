@@ -13,9 +13,9 @@
     ))
 
 ; updates/frames per second
-(def ups 2)
+(def ups 30)
 
-(def *paused* ^:dynamic false)
+(def *paused* false)
 
 ; an ugly but necessary global to get the state into the canvas callback function
 (def *state-to-paint* ^:dynamic {})
@@ -35,6 +35,7 @@
 
 (defn --paint [state canvas g2d]
   (doto g2d
+    ((fn [g] (doseq [ent (:ents state)] (ents/draw ent g))))
     (gr/draw (gr/line 0 0 200 400) (utils/graphics.style [100 23 250 255] 3))
     (.drawString (str "Step: " (:step state)) 200 200)))
 
