@@ -212,5 +212,16 @@
 (println -my-map)
 ; {:a 42, :b 100} (same)
 
-
 ; (defstruct mystruct :hi :hello)
+
+(def some-data
+  {:type "thing"
+   :pos [50 50]
+   :size 50
+   :width 4})
+
+((fn [self]
+   (-> self
+       (assoc :long-name (fn [] (str (:type self) (:pos self)))))) some-data)
+
+(defmacro add-method [data method] ())
