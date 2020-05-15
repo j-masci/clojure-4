@@ -25,13 +25,13 @@
 
 
 
+
+
 (defmulti transform-shape
           (fn [shape offset rotation]
             (:type shape)))
 
-(defmethod transform-shape
-  :line
-  [line offset rotation]
+(defmethod transform-shape :line [line offset rotation]
   ())
 
 (def eg-render-data

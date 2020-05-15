@@ -6,9 +6,11 @@
     [seesaw.options :as ss.options]
     [seesaw.graphics :as gr]
     [seesaw.color :as color]
+    [clojure.data.json :as json]
     [clojure.pprint]
     utils
     ents
+    window
     ;[jdk.awt.core]
     ;[jdk.awt.Frame :as frame]
     ;[jdk.awt.Color :as color]
@@ -20,12 +22,7 @@
 
 (def *paused* false)
 
-; an ugly but necessary global to get the state into the canvas callback function
-(def *state-to-paint* ^:dynamic {})
-
 (def map-1 "
-00000000000000000000111111000000000000000000000000000000000000000000000000
-00000000000000000000011111100111000000000000000000000000000000000000000000
 00000000000111110000000001110000000000000000000000000000000110000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000011100000000000000000000000000000000
@@ -58,30 +55,15 @@
       (update :step inc)
       (assoc :ents (mapv (fn [ent] (ents/integrate ent)) (:ents state)))))
 
-(defn --paint [state canvas g2d]
+(defn -paint [state canvas g2d]
   (doto g2d
     ((fn [g] (doseq [ent (:ents state)] (ents/draw ent g))))
-    (gr/draw (gr/line 0 0 200 400) (utils/gr.style [100 23 250 255] 3))
     (.drawString (str "Step: " (:step state)) 200 200)))
 
-; the callback that lives on the canvas object, it can't accept state
-; as a parameter so it uses a global instead.
-(defn --paint-callback [c g]
-  (--paint *state-to-paint* c g))
-
-(def canvas (ss/canvas :id "canvas" :background "#EBEBEB" :paint --paint-callback))
-(def panel (ss/border-panel :hgap 1 :vgap 1 :border 3 :center canvas))
-(def frame (ss/frame
-             :width 1200
-             :height 900
-             :title "Clojure-4"
-             :on-close :exit
-             :content panel))
-
-; call this one in the loop
-(defn --repaint [state]
-  (def *state-to-paint* state)
-  (ss/repaint! canvas))
+(defn -paint-via-state [state]
+  "paint state to the screen"
+  (window/paint-given-fn! (fn [canvas g2d]
+                            (-paint state canvas g2d))))
 
 (def -input-queue
   "vector of input events to process on next update"
@@ -100,31 +82,39 @@
 (defn map-inputs [evs]
   (map awt_input/map-input evs))
 
+(def -all-states (atom []))
+
+(defn dump-state! []
+  (let [timestamp (int (/ (System/currentTimeMillis) 1000))
+        content (json/pprint @-all-states)]
+    (spit (str "/debug/states-" timestamp ".txt") content)))
+
 (defn loop-game [state]
   "ie. start game, run"
   (let [t1 (System/nanoTime)
         ; not perfect input logic in respect to game paused for now
         input (map-inputs (get-input-queue true))
         next-state (if *paused* state (step (assoc state :input input)))
-        _ (--repaint next-state)
+        _ (-paint-via-state next-state)
         t2 (System/nanoTime)
         diff (- t2 t1)
         sleep-for-ns (- (utils/nano-seconds-per-frame ups) diff)]
     (do
+      (if-not *paused* (swap! -all-states conj next-state))
       (when (> sleep-for-ns 0) (Thread/sleep (long (/ sleep-for-ns 1000000))))
       (recur next-state))))
 
 (defn open-window []
-  (ss/invoke-later (ss/show! frame)))
+  (ss/invoke-later (ss/show! window/frame)))
 
 (defn close-window []
-  (ss/invoke-later (ss/hide! frame)))
+  (ss/invoke-later (ss/hide! window/frame)))
 
-(ss/listen canvas
+(ss/listen window/canvas
            :mouse-entered -queue-input)
 
 ; keys, focus, and mouse wheel, but not mouse entered
-(ss/listen frame
+(ss/listen window/frame
            :focus-gained -queue-input
            :mouse-wheel-moved -queue-input
            :key -queue-input

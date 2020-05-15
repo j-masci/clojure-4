@@ -39,3 +39,4 @@ build/
 # me
 .idea
 clojure-4.iml
+/debug/
