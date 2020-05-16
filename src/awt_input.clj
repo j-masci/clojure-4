@@ -52,8 +52,3 @@
     (where :type :key-up)
     (where :keyText key-text)))
 
-(def eg-events [{:type :mouse-click} {:type :key-up :keyText "s"} {:type :key-press :keyText "space"}])
-
-(def eg-check (is-key-up eg-events "s"))
-
-
