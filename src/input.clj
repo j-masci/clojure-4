@@ -1,4 +1,4 @@
-(ns awt_input
+(ns input
   (:import
     java.awt.event.KeyEvent
     java.awt.event.MouseEvent
@@ -17,38 +17,41 @@
                KeyEvent/KEY_RELEASED :key-up)]
     {:type type
      :code (.getKeyCode ev)
-     :text (.toLowerCase (KeyEvent/getKeyText (.getKeyCode ev)))}))
+     :text (.toLowerCase (KeyEvent/getKeyText (.getKeyCode ev)))
+     :param-string (.paramString ev)}))
 
 (defmethod map-input
   MouseEvent
   [ev]
   (let [type (condp = (.getID ev)
-               MouseEvent/MOUSE_CLICKED :mouse-click
-               :TODO
+               MouseEvent/MOUSE_CLICKED :mouse-click :TODO
                )]
-    {:type :TODO}))
+    {:type type
+     :param-string (.paramString ev)}))
 
 (defmethod map-input
   MouseWheelEvent
   [ev]
-  {:type :TODO})
+  {:type :TODO
+   :param-string (.paramString ev)})
 
 (defmethod map-input
   :default
   [ev]
-  {:type :not-recognized})
+  {:type :not-recognized
+   :param-string (.paramString ev)})
 
 (defn coll-contains [coll & preds]
   "Returns true if all predicates return true on at least one element of the collection
   (and does this efficiently/lazily). Basically just (boolean (some pred coll)) but allows
   for multiple predicates (ie. it calls every-pred for you)."
-  (boolean (some (apply every-pred preds) coll)))
+  (when (> (count coll) 0) (boolean (some (apply every-pred preds) coll))))
 
 (defn where [key val]
-  (fn [a-map] (= a-map key) val))
+  "the returned function checks if (a-map key) equals val"
+  (fn [a-map] (= (a-map key) val)))
 
 (defn is-key-up [evs key-text]
   (coll-contains evs
     (where :type :key-up)
-    (where :keyText key-text)))
-
+    (where :text key-text)))

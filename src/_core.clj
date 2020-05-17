@@ -1,6 +1,6 @@
 (ns _core
   (:require
-    [awt_input]
+    [input]
     [clojure.core.matrix :as m]
     [seesaw.core :as ss]
     [seesaw.options :as ss.options]
@@ -40,18 +40,29 @@
   "initial state"
   {:step       0
    :delta-time 0
-   :map        map-1
    :input      []
    :config     {}
-   :camera     {:pos [0 0]
-                :dir 0.0
+   :camera     {:pos  [0 0]
+                :dir  0.0
                 :zoom 1.0}
    :ents       [ents/player]})
 
+(def -all-states (atom []))
+
+(defn dump-state! []
+  (let [timestamp (int (/ (System/currentTimeMillis) 1000))
+        content (with-out-str (json/pprint @-all-states))
+        _ (println "--DUMPING STATE--" (count content))]
+    (spit (str "debug/states-" timestamp ".txt") content)))
+
+(defn global-input-handler [state]
+  (when (input/is-key-up (:input state) "f2") (dump-state!))
+  state)
+
 (defn step [state]
   "The update function. Returns the next state via the current state."
-  (clojure.pprint/pprint (:input state))
   (-> state
+      (global-input-handler)
       (update :step inc)
       (assoc :ents (mapv (fn [ent] (ents/integrate ent)) (:ents state)))))
 
@@ -80,35 +91,7 @@
      queue)))
 
 (defn map-inputs [evs]
-  (map awt_input/map-input evs))
-
-(def -all-states (atom []))
-
-(defn dump-state! []
-  (let [timestamp (int (/ (System/currentTimeMillis) 1000))
-        content (json/pprint @-all-states)]
-    (spit (str "/debug/states-" timestamp ".txt") content)))
-
-(defn loop-game [state]
-  "ie. start game, run"
-  (let [t1 (System/nanoTime)
-        ; not perfect input logic in respect to game paused for now
-        input (map-inputs (get-input-queue true))
-        next-state (if *paused* state (step (assoc state :input input)))
-        _ (-paint-via-state next-state)
-        t2 (System/nanoTime)
-        diff (- t2 t1)
-        sleep-for-ns (- (utils/nano-seconds-per-frame ups) diff)]
-    (do
-      (if-not *paused* (swap! -all-states conj next-state))
-      (when (> sleep-for-ns 0) (Thread/sleep (long (/ sleep-for-ns 1000000))))
-      (recur next-state))))
-
-(defn open-window []
-  (ss/invoke-later (ss/show! window/frame)))
-
-(defn close-window []
-  (ss/invoke-later (ss/hide! window/frame)))
+  (map input/map-input evs))
 
 (ss/listen window/canvas
            :mouse-entered -queue-input)
@@ -122,5 +105,31 @@
            ;:key-typed (fn [e] (println "key typed"))
            ;:key-released (fn [e] (println "key released"))
            )
+
+(def *input-debug* true)
+
+(defn loop-game [state]
+  "ie. start game, run"
+  (let [t1 (System/nanoTime)
+        ; not perfect input logic in respect to game paused for now
+        input (map-inputs (get-input-queue true))
+        next-state (if *paused* state (step (assoc state :input input)))
+        _ (-paint-via-state next-state)
+        t2 (System/nanoTime)
+        diff (- t2 t1)
+        sleep-for-ns (- (utils/nano-seconds-per-frame ups) diff)]
+    (do
+      (when *input-debug* (when (seq input) (println "--INPUT--") (clojure.pprint/pprint input)))
+      (if-not *paused* (swap! -all-states conj next-state))
+      (when (> sleep-for-ns 0) (Thread/sleep (long (/ sleep-for-ns 1000000))))
+      (recur next-state))))
+
+(defn open-window []
+  (ss/invoke-later (ss/show! window/frame)))
+
+(defn close-window []
+  (ss/invoke-later (ss/hide! window/frame)))
+
+(defn game! [] (loop-game state-0))
 
 (defn -main [& args] (do (open-window) (loop-game state-0)))
