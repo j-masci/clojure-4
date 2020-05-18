@@ -17,8 +17,7 @@
     )
   (:use globals))
 
-; updates/frames per second
-(def ups 30)
+(def *updates-per-second* 30)
 
 (def *paused* false)
 
@@ -117,7 +116,7 @@
         _ (-paint-via-state next-state)
         t2 (System/nanoTime)
         diff (- t2 t1)
-        sleep-for-ns (- (utils/nano-seconds-per-frame ups) diff)]
+        sleep-for-ns (- (utils/nano-seconds-per-frame *updates-per-second*) diff)]
     (do
       (when *input-debug* (when (seq input) (println "--INPUT--") (clojure.pprint/pprint input)))
       (if-not *paused* (swap! -all-states conj next-state))

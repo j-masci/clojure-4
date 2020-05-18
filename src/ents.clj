@@ -24,9 +24,6 @@
     (.drawString (str (:pos ent)) 50 50)))
 
 
-
-
-
 (defmulti transform-shape
           (fn [shape offset rotation]
             (:type shape)))
