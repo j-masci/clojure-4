@@ -1,4 +1,4 @@
-(ns window
+(ns graphics
   (:require [seesaw.core :as ss]
             [seesaw.graphics :as gr]
             [seesaw.options :as opt]

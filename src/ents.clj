@@ -1,5 +1,6 @@
 (ns ents
   (:require [clojure.core.matrix :as m]
+            [clojure.spec.alpha :as s]
             [seesaw.graphics :as gr])
   (:use globals))
 
@@ -14,6 +15,8 @@
       (assoc :vel (m/add (:vel ent) (:acc ent)))
       (assoc :pos (m/add (:pos ent) (:vel ent)))))
 
+
+
 (defmulti draw (fn [ent g] (:type ent)))
 
 (defmethod draw
@@ -24,17 +27,3 @@
     (.drawString (str (:pos ent)) 50 50)))
 
 
-(defmulti transform-shape
-          (fn [shape offset rotation]
-            (:type shape)))
-
-(defmethod transform-shape :line [line offset rotation]
-  ())
-
-(def eg-render-data
-  [{:type :line
-    :start [-10 -10]
-    :end [-10 20]}
-   {:type   :circle
-    :center [0 0]
-    :radius 5}])

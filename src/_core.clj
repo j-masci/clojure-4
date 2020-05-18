@@ -1,19 +1,15 @@
 (ns _core
   (:require
-    [input]
-    [clojure.core.matrix :as m]
-    [seesaw.core :as ss]
-    [seesaw.options :as ss.options]
-    [seesaw.graphics :as gr]
-    [seesaw.color :as color]
-    [clojure.data.json :as json]
-    [clojure.pprint]
+    graphics
     utils
     ents
-    window
-    ;[jdk.awt.core]
-    ;[jdk.awt.Frame :as frame]
-    ;[jdk.awt.Color :as color]
+    input
+    shapes
+    [seesaw.core :as ss]
+    [clojure.data.json :as json]
+    [clojure.pprint]
+    ; [clojure.core.matrix :as m]
+    ; [seesaw.graphics :as gr]
     )
   (:use globals))
 
@@ -72,7 +68,7 @@
 
 (defn -paint-via-state [state]
   "paint state to the screen"
-  (window/paint-given-fn! (fn [canvas g2d]
+  (graphics/paint-given-fn! (fn [canvas g2d]
                             (-paint state canvas g2d))))
 
 (def -input-queue
@@ -92,11 +88,11 @@
 (defn map-inputs [evs]
   (map input/map-input evs))
 
-(ss/listen window/canvas
+(ss/listen graphics/canvas
            :mouse-entered -queue-input)
 
 ; keys, focus, and mouse wheel, but not mouse entered
-(ss/listen window/frame
+(ss/listen graphics/frame
            :focus-gained -queue-input
            :mouse-wheel-moved -queue-input
            :key -queue-input
@@ -124,10 +120,10 @@
       (recur next-state))))
 
 (defn open-window []
-  (ss/invoke-later (ss/show! window/frame)))
+  (ss/invoke-later (ss/show! graphics/frame)))
 
 (defn close-window []
-  (ss/invoke-later (ss/hide! window/frame)))
+  (ss/invoke-later (ss/hide! graphics/frame)))
 
 (defn game! [] (loop-game state-0))
 
