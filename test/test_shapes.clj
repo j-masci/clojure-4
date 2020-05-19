@@ -14,3 +14,11 @@
     (is (= (get-in out [0 :p1 0]) 10) (str "The x coordinate of the first lines first point seems invalid." out))
     (is (= (get-in out [2 :p2 1]) 20) (str "The y coordinate of the third lines second point seems invalid." out))))
 
+(deftest test-angle-between
+  (is (= (shapes/angle-between [0 0] [0 1]) 90.0))
+  (is (= (shapes/angle-between [0 0] [1 0]) 0.0))
+  (is (= (shapes/angle-between [0 0] [-1 0]) 180.0))
+  (is (= (shapes/angle-between [0 0] [0 -1]) -90.0))
+  (let [small (shapes/angle-between [10 10] [5000 11])]
+    (is (< small 0.02) "Not less than 0.02. (Expecting about 0.011482)")
+    (is (> small 0) "Not greater than zero. (Expecting about 0.011482)")))
