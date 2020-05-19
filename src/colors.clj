@@ -560,14 +560,13 @@
   ([color op] (conj (colors color) op)))
 
 (defn check
-  "Adds an alpha element to an rgba vector if it doesn't already exist.
-  A keyword is also fine since seesaw normally accepts keywords like :red."
   ([color] (check color 255))
   ([color alpha]
    (let [is-v (vector? color)
          c (when is-v (count color))]
      (cond
-       (keyword? color) color
+       (nil? color) [0 0 0 255]
+       (keyword? color) (colors color [0 0 0 255])
        (and is-v (= c 4)) color
        (and is-v (= c 3)) (conj color alpha)
        :else (throw (IllegalArgumentException. (str "Color should be a vector of length 3 or 4, or a keyword.")))))))

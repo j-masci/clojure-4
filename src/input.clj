@@ -12,12 +12,12 @@
   KeyEvent
   [ev]
   (let [type (condp = (.getID ev)
-               KeyEvent/KEY_TYPED :key-press
+               KeyEvent/KEY_TYPED :key-typed
                KeyEvent/KEY_PRESSED :key-down
                KeyEvent/KEY_RELEASED :key-up)]
-    {:type type
-     :code (.getKeyCode ev)
-     :text (.toLowerCase (KeyEvent/getKeyText (.getKeyCode ev)))
+    {:type         type
+     :code         (.getKeyCode ev)
+     :text         (.toLowerCase (KeyEvent/getKeyText (.getKeyCode ev)))
      :param-string (.paramString ev)}))
 
 (defmethod map-input
@@ -26,19 +26,19 @@
   (let [type (condp = (.getID ev)
                MouseEvent/MOUSE_CLICKED :mouse-click :TODO
                )]
-    {:type type
+    {:type         type
      :param-string (.paramString ev)}))
 
 (defmethod map-input
   MouseWheelEvent
   [ev]
-  {:type :TODO
+  {:type         :TODO
    :param-string (.paramString ev)})
 
 (defmethod map-input
   :default
   [ev]
-  {:type :not-recognized
+  {:type         :not-recognized
    :param-string (.paramString ev)})
 
 (defn coll-contains [coll & preds]
@@ -51,7 +51,18 @@
   "the returned function checks if (a-map key) equals val"
   (fn [a-map] (= (a-map key) val)))
 
+; key typed broken atm
+(defn is-key-typed [evs key-text]
+  (coll-contains evs
+                 (where :type :key-typed)
+                 (where :text key-text)))
+
+(defn is-key-down [evs key-text]
+  (coll-contains evs
+                 (where :type :key-down)
+                 (where :text key-text)))
+
 (defn is-key-up [evs key-text]
   (coll-contains evs
-    (where :type :key-up)
-    (where :text key-text)))
+                 (where :type :key-up)
+                 (where :text key-text)))

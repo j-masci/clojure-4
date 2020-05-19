@@ -13,7 +13,7 @@
     )
   (:use globals))
 
-(def *updates-per-second* 30)
+(def *updates-per-second* 20)
 
 (def *paused* false)
 
@@ -42,6 +42,8 @@
                 :zoom 1.0}
    :ents       [ents/player]})
 
+(defn get-player-nth [state] 0)
+
 (def -all-states (atom []))
 
 (defn dump-state! []
@@ -50,32 +52,51 @@
         _ (println "--DUMPING STATE--" (count content))]
     (spit (str "debug/states-" timestamp ".txt") content)))
 
-(defn global-input-handler [state]
+(defn -check-global-controls [state]
+  (when (input/is-key-up (:input state) "f1") (println "Ok what?"))
   (when (input/is-key-up (:input state) "f2") (dump-state!))
-  state)
+  (if (input/is-key-up (:input state) "f5") state-0 state))
 
-(defn step [state]
+(def listener-eg {:type :key-up :text "w" :callback (fn [state] (-> state))})
+
+(defn -check-player-controls [state]
+  (let [typed #(input/is-key-typed (:input state) %)
+        player-nth (get-player-nth state)]
+    (cond-> state
+            (input/is-key-down (:input state) "w") (update-in [:ents player-nth :vel 1] #(- % 0.2))
+            (input/is-key-down (:input state) "a") (update-in [:ents player-nth :vel 0] #(- % 0.2))
+            (input/is-key-down (:input state) "s") (update-in [:ents player-nth :vel 1] #(+ % 0.2))
+            (input/is-key-down (:input state) "d") (update-in [:ents player-nth :vel 0] #(+ % 0.2)))))
+
+(defn -compute-ent-shapes [state]
+  "Set shapes vec on each entity which will get passed to a drawing function."
+  (update state :ents
+          (fn [ents]
+            (mapv
+              (fn [ent] (assoc ent :shapes (shapes/ent->shapes (:type ent) ent))) ents))))
+
+(defn -iterate [state]
   "The update function. Returns the next state via the current state."
   (-> state
-      (global-input-handler)
       (update :step inc)
-      (assoc :ents (mapv (fn [ent] (ents/integrate ent)) (:ents state)))))
+      (-check-global-controls)
+      (-check-player-controls)
+      (-compute-ent-shapes)
+      (update :ents #(mapv ents/integrate %))))
 
 (defn -paint [state canvas g2d]
-  (doto g2d
-    ((fn [g] (doseq [ent (:ents state)] (ents/draw ent g))))
-    (.drawString (str "Step: " (:step state)) 200 200)))
+  (shapes/draw! :circle (shapes/circle (get-in state [:ents 0 :pos]) 20) g2d)
+  (doseq [ent (:ents state)] (doseq [shape (:shapes ent)] (shapes/draw! (:type shape) shape g2d)))
+  (.drawString g2d (str "Test" (:step state)) 500 500))
 
 (defn -paint-via-state [state]
   "paint state to the screen"
   (graphics/paint-given-fn! (fn [canvas g2d]
-                            (-paint state canvas g2d))))
+                              (-paint state canvas g2d))))
 
 (def -input-queue
   "vector of input events to process on next update"
   (atom []))
-
-(defn -queue-input [e] (swap! -input-queue conj e))
 
 (defn get-input-queue
   "get queued inputs as a vector, and optionally reset the queue (side effect)"
@@ -85,8 +106,7 @@
      (when reset (reset! -input-queue []))
      queue)))
 
-(defn map-inputs [evs]
-  (map input/map-input evs))
+(defn -queue-input [e] (swap! -input-queue conj e))
 
 (ss/listen graphics/canvas
            :mouse-entered -queue-input)
@@ -95,26 +115,19 @@
 (ss/listen graphics/frame
            :focus-gained -queue-input
            :mouse-wheel-moved -queue-input
-           :key -queue-input
-           ;:key-pressed (fn [e] (println "key pressed") (println e))
-           ;:key-typed (fn [e] (println "key typed"))
-           ;:key-released (fn [e] (println "key released"))
-           )
-
-(def *input-debug* true)
+           :key -queue-input)
 
 (defn loop-game [state]
   "ie. start game, run"
   (let [t1 (System/nanoTime)
         ; not perfect input logic in respect to game paused for now
-        input (map-inputs (get-input-queue true))
-        next-state (if *paused* state (step (assoc state :input input)))
+        input (mapv input/map-input (get-input-queue true))
+        next-state (if *paused* state (-iterate (assoc state :input input)))
         _ (-paint-via-state next-state)
         t2 (System/nanoTime)
         diff (- t2 t1)
         sleep-for-ns (- (utils/nano-seconds-per-frame *updates-per-second*) diff)]
     (do
-      (when *input-debug* (when (seq input) (println "--INPUT--") (clojure.pprint/pprint input)))
       (if-not *paused* (swap! -all-states conj next-state))
       (when (> sleep-for-ns 0) (Thread/sleep (long (/ sleep-for-ns 1000000))))
       (recur next-state))))
