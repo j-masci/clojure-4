@@ -20,9 +20,12 @@
 
 (def panel (ss/border-panel :hgap 1 :vgap 1 :border 3 :center canvas))
 
+(def window-height 900)
+(def window-width 1200)
+
 (def frame (ss/frame
-             :width 1200
-             :height 900
+             :width window-width
+             :height window-height
              :title "Clojure-4"
              :on-close :exit
              :content panel))

@@ -5,52 +5,67 @@
     ents
     input
     shapes
+    vec
+    mock
     [seesaw.core :as ss]
     [clojure.data.json :as json]
     [clojure.pprint]
     [clojure.core.matrix :as matrix]
-    ; [seesaw.graphics :as gr]
+    [seesaw.graphics :as gr]
     )
   (:use globals))
 
-(def *updates-per-second* 20)
+(def *updates-per-second* 60)
 
 (def *paused* false)
 
-(def map-1 "
-00000000000111110000000001110000000000000000000000000000000110000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000011100000000000000000000000000000000
-00000000000000001000000000000000000000000000000000000000000000000000000000
-00000000000000000011000000000000000000000000000000000000000000000000000000
-00000000000000000000110000000000110000000000000000000000000000011000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000011100000000000000000000000000000000
-00000000000000000000000000000000000000011100000000000000000000000000000000
-00000000000000000000000000000000000000011100000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000
-")
-
 (def state-0
-  "initial state"
+  "Initial state. Immutable."
   {:step       0
    :delta-time 0
    :input      []
    :config     {}
-   :camera     {:pos  [600 450]
+   :camera     {:pos  [0 0]
                 :dir  90
                 :zoom 1.0}
-   :ents       [ents/player
+   ; for now, player must be the first entity
+   :ents       [(ents/ent :player
+                          :dir 0
+                          :pos [0.0 0.0]
+                          :vel [0.0 0.0]
+                          :acc [0.0 0.0]
+                          :shapes (concat [(shapes/create-circle [0 8] 4)
+                                           (shapes/create-circle [0 -8] 4)
+                                           (shapes/create-circle [-10 -16] 4)
+                                           (shapes/create-circle [-10 16] 4)
+                                           (shapes/create-circle [10 16] 4)
+                                           (shapes/create-circle [10 -16] 4)
+                                           (shapes/create-line [-4 14] [0 22])
+                                           (shapes/create-line [4 14] [0 22])]
+                                          (shapes/points->lines [[-10 -16]
+                                                                 [-10 16]
+                                                                 [10 16]
+                                                                 [10 -16]])))
                 (ents/ent :grid-lines
-                          :shapes [(assoc (shapes/line [-1000 0] [1000 0]) :color [30 200 30 255])
-                                   (assoc (shapes/line [0 -1000] [0 1000]) :color [30 30 200 255])])
-                (ents/ent :no-type
-                          :dir 90
-                          :shapes [(shapes/line [-10 0] [10 0])
-                                   (shapes/line [0 0] [0 10])])]})
+                          :shapes [(assoc (shapes/create-line [-1000 0] [1000 0]) :color (colors/rgba :blue4))
+                                   (assoc (shapes/create-line [0 -1000] [0 1000]) :color (colors/rgba :red1))
+                                   (shapes/create-circle [0 100] 20)
+                                   (shapes/create-circle [-50 0] 10)])
+                ; a circle in the first quadrant with a line pointing towards the origin
+                (ents/ent :thing
+                          :dir 225
+                          :pos [250 250]
+                          :shapes [(shapes/create-circle [0 0] 30)
+                                   (shapes/create-line [0 0] [0 250])])
+                mock/ent0
+                mock/ent1
+                mock/ent2
+                mock/ent3]})
 
-(defn get-player-nth [state] 0)
+; good for testing/repl
+(defn player [] (get-in state-0 [:ents 0]))
 
+; for debugging
 (def -all-states (atom []))
 
 (defn dump-state! []
@@ -64,32 +79,26 @@
   (when (input/is-key-up (:input state) "f2") (dump-state!))
   (if (input/is-key-up (:input state) "f5") state-0 state))
 
-(def listener-eg {:type :key-up :text "w" :callback (fn [state] (-> state))})
+; should we define listeners as data ?? ya probably
+(def listener-eg {:type :key-up :text "w" :active true :callback (fn [state] (-> state))})
 
-(defn ent-vel-forwards [ent amt]
-  (assoc ent :vel (matrix/add (:vel ent) (shapes/polar->point|deg (:dir ent) amt))))
+(defn add-rel-deg [ent key degrees magnitude]
+  "Update an entities pos/vel/acc in a direction which is relative to its current direction. 0 degrees
+  means forward, 90 is to the left, etc."
+  (update ent key matrix/add (vec/from-polar-deg (+ (:dir ent) degrees) magnitude)))
 
 (defn -check-player-controls [state]
-  (let [typed #(input/is-key-typed (:input state) %)
-        player-nth (get-player-nth state)]
-    (cond-> state
-            (input/is-key-down (:input state) "q") (update-in [:camera :dir] #(- % 6))
-            (input/is-key-down (:input state) "e") (update-in [:camera :dir] #(+ % 6))
-            (input/is-key-down (:input state) "w") (update-in [:camera :pos 1] #(+ % 20))
-            (input/is-key-down (:input state) "s") (update-in [:camera :pos 1] #(- % 20))
-            (input/is-key-down (:input state) "a") (update-in [:camera :pos 0] #(- % 20))
-            (input/is-key-down (:input state) "d") (update-in [:camera :pos 0] #(+ % 20))
-            (input/is-key-down (:input state) "space") (update-in [:ents player-nth] #(ent-vel-forwards % 1))
-            (input/is-key-down (:input state) "up") (update-in [:ents player-nth :vel 1] #(- % 0.5))
-            (input/is-key-down (:input state) "left") (update-in [:ents player-nth :vel 0] #(- % 0.5))
-            (input/is-key-down (:input state) "down") (update-in [:ents player-nth :vel 1] #(+ % 0.5))
-            (input/is-key-down (:input state) "right") (update-in [:ents player-nth :vel 0] #(+ % 0.5)))))
-
-;(defn -compute-ent-shapes [state]
-;  (update state :ents
-;          (fn [ents]
-;            (mapv
-;              (fn [ent] (assoc ent :shapes (shapes/ent->shapes (:type ent) ent))) ents))))
+  (cond-> state
+          (input/is-key-down (:input state) "q") (update-in [:camera :dir] #(- % 2))
+          (input/is-key-down (:input state) "e") (update-in [:camera :dir] #(+ % 2))
+          (input/is-key-down (:input state) "w") (update :camera add-rel-deg :pos 0 10)
+          (input/is-key-down (:input state) "a") (update :camera add-rel-deg :pos 90 10)
+          (input/is-key-down (:input state) "s") (update :camera add-rel-deg :pos 180 10)
+          (input/is-key-down (:input state) "d") (update :camera add-rel-deg :pos -90 10)
+          (input/is-key-down (:input state) "up") (update-in [:ents 0] add-rel-deg :vel 0 5)
+          (input/is-key-down (:input state) "left") (update-in [:ents 0] add-rel-deg :vel 90 5)
+          (input/is-key-down (:input state) "down") (update-in [:ents 0] add-rel-deg :vel 180 5)
+          (input/is-key-down (:input state) "right") (update-in [:ents 0] add-rel-deg :vel -90 5)))
 
 (defn -iterate [state]
   "Get the next state via the current state. A pure function. Note that state contains input."
@@ -100,45 +109,33 @@
       ; (-compute-ent-shapes)
       (update :ents #(mapv ents/integrate %))))
 
-;(defn draw-ent [state ent]
-;  (let [shape (:shapes ent [])]
-;    ))
+; why the FUCK does this do nothing
+(defn draw-absolute-line
+  ([g2d p1 p2] (draw-absolute-line g2d p1 p2 [255 255 255 255]))
+  ([g2d p1 p2 rgba] (gr/draw g2d (gr/line (p1 0) (p1 1) (p2 0) (p2 1)) (utils/gr.style rgba))))
 
-; WIP
-;(defn draw-ent [state ent canvas g2d]
-;  ())
-
-(defn prep-ent [state ent]
-  "Generate shapes transformed for drawing on the window."
-  (let [cam-pos (:pos (:camera state))
-        cam-dir (:dir (:camera state))
-        cam-height 900
-        cam-width 1200
-        shapes (:shapes ent)
-        ent-pos (:pos ent)
-        ent-dir (:dir ent)
-        rotate-by (- ent-dir cam-dir)
-        cam-ent-relative-pos (shapes/cam-ent-relative-position cam-pos cam-dir ent-pos)
-        cam-window-relative-pos (shapes/cam-relative-to-screen cam-ent-relative-pos cam-width cam-height)]
-    (mapv (fn [shape]
-            (-> shape
-                (#(shapes/rotate (:type %) % rotate-by))
-                (#(shapes/transform (:type %) % cam-window-relative-pos))))
-          shapes)))
-
-(defn draw-ent [state ent canvas g2d]
-  (let [shapes (prep-ent state ent)]
-    (doseq [shape shapes] (shapes/draw! (:type shape) shape g2d))))
+(defn draw-string
+  [g2d x y str]
+  (.drawString g2d str x y))
 
 (defn -paint! [state canvas g2d]
   ; (shapes/draw! :circle (shapes/circle (get-in state [:ents 0 :pos]) 20) g2d)
   ; (doseq [ent (:ents state)] (doseq [shape (:shapes ent)] (shapes/draw! (:type shape) shape g2d)))
-  (let [s #(.drawString g2d %1 5 %2)]
-    (doseq [ent (:ents state)] (draw-ent state ent canvas g2d))
-    (s (with-out-str (clojure.pprint/pprint (-> state (dissoc :input :config :camera :ents)))) 20)
-    (s (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 0) (dissoc :shapes)))) 40)
-    (s (with-out-str (clojure.pprint/pprint {:camera (:camera state)})) 60)
-    (s (with-out-str (clojure.pprint/pprint (-> state (:input)))) 80)))
+  (let [ww graphics/window-width
+        ww2 (int (/ ww 2))
+        wh graphics/window-height
+        wh2 (int (/ wh 2))]
+    ; draw the entities
+    (doseq [ent (:ents state)] (ents/draw! state ent canvas g2d))
+    (draw-absolute-line g2d [0 wh2] [ww wh2] (colors/rgba :green1))
+    (draw-absolute-line g2d [ww2 0] [ww2 wh] (colors/rgba :greenyellow))
+    ; debugging stuff
+    (draw-string g2d 5 20 (with-out-str (clojure.pprint/pprint (select-keys state [:step :camera]))))
+    (draw-string g2d 5 40 (with-out-str (clojure.pprint/pprint (-> state (:input)))))
+    (draw-string g2d 5 60 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 0) (dissoc :shapes)))))
+    (draw-string g2d 5 80 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (dissoc :shapes)))))
+    (draw-string g2d 5 100 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (ents/to-cam-coords state) (:shapes)))))
+    ))
 
 (defn -paint-via-state! [state]
   "paint state to the screen"
@@ -192,3 +189,5 @@
 (defn game! [] (loop-game! state-0))
 
 (defn -main [& args] (do (open-window!) (loop-game! state-0)))
+
+
