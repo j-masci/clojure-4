@@ -29,34 +29,36 @@
                 :dir  90
                 :zoom 1.0}
    ; for now, player must be the first entity
-   :ents       [(ents/ent :player
-                          :dir 0
+   :ents       [
+                (ents/ent :player
+                          :dir 45
                           :pos [0.0 0.0]
                           :vel [0.0 0.0]
                           :acc [0.0 0.0]
-                          :shapes (concat [(shapes/create-circle [0 8] 4)
-                                           (shapes/create-circle [0 -8] 4)
+                          :shapes (concat [
+                                           (shapes/create-circle [0 16] 4)
                                            (shapes/create-circle [-10 -16] 4)
                                            (shapes/create-circle [-10 16] 4)
                                            (shapes/create-circle [10 16] 4)
-                                           (shapes/create-circle [10 -16] 4)
-                                           (shapes/create-line [-4 14] [0 22])
-                                           (shapes/create-line [4 14] [0 22])]
+                                           (shapes/create-circle [10 -16] 4)]
                                           (shapes/points->lines [[-10 -16]
                                                                  [-10 16]
                                                                  [10 16]
                                                                  [10 -16]])))
+
                 (ents/ent :grid-lines
-                          :shapes [(assoc (shapes/create-line [-1000 0] [1000 0]) :color (colors/rgba :blue4))
-                                   (assoc (shapes/create-line [0 -1000] [0 1000]) :color (colors/rgba :red1))
-                                   (shapes/create-circle [0 100] 20)
-                                   (shapes/create-circle [-50 0] 10)])
+                          :shapes [
+                                   ; y-axis, grey
+                                   (assoc (shapes/create-line [-1000 0] [1000 0]) :color [100 100 100 255])
+                                   ; x axis, black
+                                   (assoc (shapes/create-line [0 -1000] [0 1000]) :color (colors/rgba :black))])
                 ; a circle in the first quadrant with a line pointing towards the origin
-                (ents/ent :thing
-                          :dir 225
-                          :pos [250 250]
-                          :shapes [(shapes/create-circle [0 0] 30)
-                                   (shapes/create-line [0 0] [0 250])])
+                ;(ents/ent :thing
+                ;          :dir 225
+                ;          :pos [250 250]
+                ;          :shapes [(shapes/create-circle [0 0] 30)
+                ;                   (shapes/create-line [0 0] [0 250])])
+                ; simple shapes on each axis
                 mock/ent0
                 mock/ent1
                 mock/ent2
@@ -68,15 +70,16 @@
 ; for debugging
 (def -all-states (atom []))
 
-(defn dump-state! []
+(defn dump-state! [state]
   (let [timestamp (int (/ (System/currentTimeMillis) 1000))
-        content (with-out-str (json/pprint @-all-states))
+        content (with-out-str (json/pprint state))
         _ (println "--DUMPING STATE--" (count content))]
     (spit (str "debug/states-" timestamp ".txt") content)))
 
 (defn -check-global-controls [state]
   (when (input/is-key-up (:input state) "f1") (println "Ok what?"))
-  (when (input/is-key-up (:input state) "f2") (dump-state!))
+  (when (input/is-key-up (:input state) "f2") (dump-state! @-all-states))
+  (when (input/is-key-up (:input state) "f3") (dump-state! (last @-all-states)))
   (if (input/is-key-up (:input state) "f5") state-0 state))
 
 ; should we define listeners as data ?? ya probably
@@ -119,8 +122,6 @@
   (.drawString g2d str x y))
 
 (defn -paint! [state canvas g2d]
-  ; (shapes/draw! :circle (shapes/circle (get-in state [:ents 0 :pos]) 20) g2d)
-  ; (doseq [ent (:ents state)] (doseq [shape (:shapes ent)] (shapes/draw! (:type shape) shape g2d)))
   (let [ww graphics/window-width
         ww2 (int (/ ww 2))
         wh graphics/window-height
@@ -133,8 +134,8 @@
     (draw-string g2d 5 20 (with-out-str (clojure.pprint/pprint (select-keys state [:step :camera]))))
     (draw-string g2d 5 40 (with-out-str (clojure.pprint/pprint (-> state (:input)))))
     (draw-string g2d 5 60 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 0) (dissoc :shapes)))))
-    (draw-string g2d 5 80 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (dissoc :shapes)))))
-    (draw-string g2d 5 100 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (ents/to-cam-coords state) (:shapes)))))
+    ;(draw-string g2d 5 80 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (dissoc :shapes)))))
+    ;(draw-string g2d 5 100 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (ents/to-cam-coords state) (:shapes)))))
     ))
 
 (defn -paint-via-state! [state]

@@ -560,6 +560,8 @@
   ([color op] (conj (colors color) op)))
 
 (defn check
+  "An unnecessary function that lets you be lazy in how you define your colors.
+  It's probably better to phase this out."
   ([color] (check color 255))
   ([color alpha]
    (let [is-v (vector? color)

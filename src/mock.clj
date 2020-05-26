@@ -11,29 +11,35 @@
 
 (def player ent)
 
-(defn grid [size] [(shapes/create-line [(- size) 0] [size 0])
-           (shapes/create-line [0 (- size)] [0 size])
-           (assoc (shapes/create-circle [0 (* size 1.25)] (/ size 3)) :color (colors/rgba :green))])
+; simple shape with a circle at its position and a line pointing
+; in the direction its entity is facing
+(defn simple-shapes [rgba]
+  [(assoc (shapes/create-circle [0 0] 10) :color rgba)
+   (assoc (shapes/create-line [0 0] [0 50]) :color rgba)])
 
 (def ent0 (ents/ent :ent0
                     :pos [200 0]
                     :dir 0
-                    :shapes (grid 10)))
+                    ; red
+                    :shapes (simple-shapes [255 0 0 255])))
 
 (def ent1 (ents/ent :ent1
                     :pos [0 200]
                     :dir 90
-                    :shapes (grid 20)))
+                    ; green
+                    :shapes (simple-shapes [0 255 0 255])))
 
 (def ent2 (ents/ent :ent2
                     :pos [-200 0]
                     :dir 180
-                    :shapes (grid 30)))
+                    ; blue
+                    :shapes (simple-shapes [0 0 255 255])))
 
 (def ent3 (ents/ent :ent3
                     :pos [0 -200]
                     :dir -90
-                    :shapes (grid 40)))
+                    ; brown-ish?
+                    :shapes (simple-shapes [200 200 100 255])))
 
 (def ents [ent0 ent1 ent2 ent3])
 

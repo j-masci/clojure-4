@@ -21,50 +21,17 @@
 
 ; -- Coordinate Conversions --
 
-(defn sync-shapes
-  "Transform shapes relative to entity pos/dir. Cannot be done
-  more than once."
-  [ent]
-  (update ent :shapes shapes/ent-align-shapes ent))
+(defn align-all-shapes [ent]
+  "Call once :dir and :pos are aligned to the window. Also, call only once."
+  (update ent :shapes (fn [shapes] (mapv #(shapes/-align-shape-to-ent % ent) shapes))))
 
-(defn to-window-coords-fuck [ent]
-  (let [p (:pos ent)]
-    (-> ent
-        (update :pos vec/cam->window 1200 900)
-        (update :shapes ))))
-
-(defn to-window-coords
-  "Transform an entity from world->camera->window coordinates."
-  [ent state]
+(defn ent-and-all-shapes-to-window-coords [ent camera]
   (-> ent
-
-      ; to cam coordinates, first
-      (vec/ent-in-camera-coords (:camera state))
-
-      ; then to window coordinates
-      (#(update % :pos vec/cam->window 1200 900))
-
-      (sync-shapes)
-
-      ; ((fn [e] (update e :shapes (fn [shapes] (mapv (fn [shape] ()) shapes)))))
-
-      ; then sync shapes
-      ; (sync-shapes)
-      ))
-
-(defn to-cam-coords
-  "Transform an entity from world to camera coordinates."
-  [ent state]
-  (-> ent
-      ; to cam coordinates, first
-      (vec/ent-in-camera-coords (:camera state))
-      ; then to window coordinates
-      ; (#(update % :pos vec/cam->window 1200 900))
-      ; then sync shapes
-      (sync-shapes)))
+      (vec/ent-from-global-to-window-coords camera)
+      (align-all-shapes)))
 
 (defn draw! [state ent canvas g2d]
   (-> ent
-      (to-window-coords state)
-      (#(doseq [shape (:shapes %)] (shapes/draw! shape g2d)))))
+      (ent-and-all-shapes-to-window-coords (:camera state))
+      ((fn [e] (doseq [shape (:shapes e)] (shapes/draw! shape g2d))))))
 

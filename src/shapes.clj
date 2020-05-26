@@ -25,6 +25,8 @@
    :p2 p2})
 
 (defn create-circle [center radius]
+  (assert (vector? center))
+  (assert (number? radius))
   {:type :circle
    :center center
    :radius radius})
@@ -46,6 +48,23 @@
 
 ; -- TRANSFORM --
 
+(defmulti flip-y (fn [shape] (:type shape)))
+
+(defmethod flip-y :line [shape]
+  (-> shape
+      (update :p1 #(update % 1 -))
+      (update :p2 #(update % 1 -))))
+
+(defmethod flip-y :circle [shape]
+  (-> shape
+      (update :center #(update % 1 -))))
+
+(defmethod flip-y :text [shape]
+  (-> shape
+      (update :pos #(update % 1 -))))
+
+; -- TRANSFORM --
+
 (defmulti transform (fn [shape offset-v] (:type shape)))
 
 (defmethod transform :line [shape offset-v]
@@ -62,18 +81,19 @@
 ; -- ROTATE --
 
 (defmulti rotate "Rotate the entity relative to its center."
-          (fn [shape deg] (:type shape)))
+          (fn [shape around deg] (:type shape)))
 
-(defmethod rotate :circle [shape deg]
+(defmethod rotate :circle [shape around deg]
+  (assert (vector? around))
   (update shape :center
-          #(vec/rotate-around [0 0] % deg)))
+          #(vec/rotate-around around % deg)))
 
-(defmethod rotate :line [shape deg]
+(defmethod rotate :line [shape around deg]
   (-> shape
-      (update :p1 #(vec/rotate-around [0 0] % deg))
-      (update :p2 #(vec/rotate-around [0 0] % deg))))
+      (update :p1 #(vec/rotate-around around % deg))
+      (update :p2 #(vec/rotate-around around % deg))))
 
-(defmethod rotate :text [shape deg]
+(defmethod rotate :text [shape around deg]
   (-> shape))
 
 ; -- SCALE --
@@ -124,15 +144,19 @@
 
 ; --- TRANSFORMATIONS ---
 
-(defn -align-ent-pos
-  [shape ent]
-  (transform shape (:pos ent)))
+(defn -rotate-shape-from-north-to-dir
+  "Rotate a shape to point in a given direction. 90 is subtracted first
+  since the shape is drawn facing north."
+  [shape dir]
+  (rotate shape [0 0] (+ -90 dir)))
 
-(defn -align-ent-dir
-  "Align a shape to its entity (rotate it).
-  Subtract 90 because shapes are drawn with north (90 deg) as forward direction."
-  [shape ent]
-  (rotate shape (+ (:dir ent) -90)))
+(defn -align-shape-to-ent [shape ent]
+  (-> shape
+      (-rotate-shape-from-north-to-dir (:dir ent))
+      ; this is the fucking error I think:
+      ; FLIP FUCKING Y!!!
+      (flip-y)
+      (transform (:pos ent))))
 
 (defn ent-align-shapes
   "Align all shapes to the :pos and :dir of ent. This needs to be done after
@@ -140,6 +164,6 @@
   of shapes, not the entity. Requires :pos and :dir from ent."
   [shapes ent]
   (mapv (fn [shape] (-> shape
-                        (-align-ent-dir ent)
-                        (-align-ent-pos ent))) shapes))
+                        (-rotate-shape-from-north-to-dir (:dir ent))
+                        (transform (:pos ent)))) shapes))
 

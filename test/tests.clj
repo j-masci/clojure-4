@@ -4,24 +4,25 @@
             _core
             shapes
             vec
-            ents)
+            ents
+            test-utils)
   (:use clojure.test))
+
+(deftest test-numbers-almost-equal
+  (is (test-utils/numbers-almost-equal 1 5 4.1))
+  (is (false? (test-utils/numbers-almost-equal 1 5 10))))
+
+(deftest test-vectors-almost-equal
+  (is (test-utils/vectors-almost-equal 0.1 [5 5 5] [4.999 5 5.05]))
+  (is (false? (test-utils/vectors-almost-equal 0.5 [5 5 5] [4 5 6]))))
 
 (deftest test-is-key-up
   (let [evs [{:type :key-up :text "j"}]]
     (is (input/is-key-up evs "j"))))
 
-(deftest cam-window-coords
-  (let [in [40 90]
-        to-window #(vec/cam->window % 2000 1600)
-        to-cam #(vec/window->cam % 2000 1600)
-        result-1 (to-window in)
-        result-2 (to-cam result-1)]
-    (is (= in result-2) (str "Expected inverse operations..." in result-1 result-2))))
-
 (deftest test-that-im-not-an-idiot
   (let [evs [{:type :key-up :text "ASDKUJHGASDJKHGASD"}]]
-    (is (= false (input/is-key-up evs "j")))))
+    (is (= false (input/is-key-up evs "j")) "So all keys are up, all the time?")))
 
 (deftest test-color-check
   (is (= (colors/check [100 100 100]) [100 100 100 255]) "Failed to add a logical default alpha.")
