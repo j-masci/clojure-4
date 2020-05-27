@@ -4,11 +4,11 @@
     java.awt.event.MouseEvent
     java.awt.event.MouseWheelEvent))
 
-(defmulti map-input
+(defmulti awt-event-obj->map
           "Convert a subclass of java.awt.event.AWTEvent to a clojure map"
           (fn [^java.awt.AWTEvent ev] (class ev)))
 
-(defmethod map-input
+(defmethod awt-event-obj->map
   KeyEvent
   [ev]
   (let [type (condp = (.getID ev)
@@ -20,22 +20,37 @@
      :text         (.toLowerCase (KeyEvent/getKeyText (.getKeyCode ev)))
      :param-string (.paramString ev)}))
 
-(defmethod map-input
+(defmethod awt-event-obj->map
   MouseEvent
   [ev]
   (let [type (condp = (.getID ev)
-               MouseEvent/MOUSE_CLICKED :mouse-click :TODO
+               MouseEvent/MOUSE_CLICKED :mouse-click
+               MouseEvent/MOUSE_FIRST :mouse-first
+               MouseEvent/MOUSE_LAST :mouse-last
+               MouseEvent/MOUSE_CLICKED :mouse-clicked
+               MouseEvent/MOUSE_PRESSED :mouse-pressed
+               MouseEvent/MOUSE_RELEASED :mouse-released
+               MouseEvent/MOUSE_MOVED :mouse-moved
+               MouseEvent/MOUSE_ENTERED :mouse-entered
+               MouseEvent/MOUSE_EXITED :mouse-exited
+               MouseEvent/MOUSE_DRAGGED :mouse-dragged
+               MouseEvent/MOUSE_WHEEL :mouse-wheel
+               ; MouseEvent/NOBUTTON :mouse-no-button         ; wtf?
+               MouseEvent/BUTTON1 :mouse-1
+               MouseEvent/BUTTON2 :mouse-2
+               MouseEvent/BUTTON3 :mouse-3
+               :mouse-unknown
                )]
     {:type         type
      :param-string (.paramString ev)}))
 
-(defmethod map-input
+(defmethod awt-event-obj->map
   MouseWheelEvent
   [ev]
   {:type         :TODO
    :param-string (.paramString ev)})
 
-(defmethod map-input
+(defmethod awt-event-obj->map
   :default
   [ev]
   {:type         :not-recognized

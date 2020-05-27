@@ -92,27 +92,22 @@
 
 (defn -check-player-controls [state]
   (cond-> state
-          (input/is-key-down (:input state) "q") (update-in [:camera :dir] #(- % 2))
-          (input/is-key-down (:input state) "e") (update-in [:camera :dir] #(+ % 2))
-          (input/is-key-down (:input state) "w") (update :camera add-rel-deg :pos 0 10)
-          (input/is-key-down (:input state) "a") (update :camera add-rel-deg :pos 90 10)
-          (input/is-key-down (:input state) "s") (update :camera add-rel-deg :pos 180 10)
-          (input/is-key-down (:input state) "d") (update :camera add-rel-deg :pos -90 10)
-          (input/is-key-down (:input state) "up") (update-in [:ents 0] add-rel-deg :vel 0 5)
-          (input/is-key-down (:input state) "left") (update-in [:ents 0] add-rel-deg :vel 90 5)
-          (input/is-key-down (:input state) "down") (update-in [:ents 0] add-rel-deg :vel 180 5)
-          (input/is-key-down (:input state) "right") (update-in [:ents 0] add-rel-deg :vel -90 5)))
 
-(defn -iterate [state]
-  "Get the next state via the current state. A pure function. Note that state contains input."
-  (-> state
-      (update :step inc)
-      (-check-global-controls)
-      (-check-player-controls)
-      ; (-compute-ent-shapes)
-      (update :ents #(mapv ents/integrate %))))
+          (input/is-key-down (:input state) "up") (update :camera add-rel-deg :pos 0 10)
+          (input/is-key-down (:input state) "left") (update :camera add-rel-deg :pos 90 10)
+          (input/is-key-down (:input state) "down") (update :camera add-rel-deg :pos 180 10)
+          (input/is-key-down (:input state) "right") (update :camera add-rel-deg :pos -90 10)
 
-; why the FUCK does this do nothing
+          ;(input/is-key-down (:input state) "q") (update-in [:camera :dir] #(- % 2))
+          ;(input/is-key-down (:input state) "e") (update-in [:camera :dir] #(+ % 2))
+
+          (input/is-key-down (:input state) "w") (update-in [:ents 0] add-rel-deg :vel 0 5)
+          (input/is-key-down (:input state) "a") (update-in [:ents 0] #(update % :dir (fn [dir] (+ dir 5))))
+          (input/is-key-down (:input state) "s") (update-in [:ents 0] add-rel-deg :vel 180 5)
+          (input/is-key-down (:input state) "d") (update-in [:ents 0] #(update % :dir (fn [dir] (- dir 5))))
+          (input/is-key-down (:input state) "space") (update-in [:ents 0] #(assoc % :vel [0 0]))
+          ))
+
 (defn draw-absolute-line
   ([g2d p1 p2] (draw-absolute-line g2d p1 p2 [255 255 255 255]))
   ([g2d p1 p2 rgba] (gr/draw g2d (gr/line (p1 0) (p1 1) (p2 0) (p2 1)) (utils/gr.style rgba))))
@@ -123,19 +118,18 @@
 
 (defn -paint! [state canvas g2d]
   (let [ww graphics/window-width
-        ww2 (int (/ ww 2))
+        w2 (int (/ ww 2))
         wh graphics/window-height
-        wh2 (int (/ wh 2))]
-    ; draw the entities
-    (doseq [ent (:ents state)] (ents/draw! state ent canvas g2d))
-    (draw-absolute-line g2d [0 wh2] [ww wh2] (colors/rgba :green1))
-    (draw-absolute-line g2d [ww2 0] [ww2 wh] (colors/rgba :greenyellow))
+        h2 (int (/ wh 2))]
+    ; does nothing ?
+    (draw-absolute-line g2d [0 h2] [ww h2] (colors/rgba :green1))
+    (draw-absolute-line g2d [w2 0] [w2 wh] (colors/rgba :greenyellow))
     ; debugging stuff
     (draw-string g2d 5 20 (with-out-str (clojure.pprint/pprint (select-keys state [:step :camera]))))
     (draw-string g2d 5 40 (with-out-str (clojure.pprint/pprint (-> state (:input)))))
     (draw-string g2d 5 60 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 0) (dissoc :shapes)))))
-    ;(draw-string g2d 5 80 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (dissoc :shapes)))))
-    ;(draw-string g2d 5 100 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 2) (ents/to-cam-coords state) (:shapes)))))
+    ; entities
+    (doseq [ent (:ents state)] (ents/draw! state ent canvas g2d))
     ))
 
 (defn -paint-via-state! [state]
@@ -158,19 +152,32 @@
 (defn -queue-input! [e] (swap! -*input-queue* conj e))
 
 (ss/listen graphics/canvas
-           :mouse-entered -queue-input!)
+           :mouse-entered -queue-input!
+           :mouse-motion -queue-input!)
 
 ; keys, focus, and mouse wheel, but not mouse entered
 (ss/listen graphics/frame
+           ; :mouse-motion -queue-input!
            :focus-gained -queue-input!
            :mouse-wheel-moved -queue-input!
            :key -queue-input!)
+
+(defn -iterate [state]
+  "Get the next state via the current state. A pure function. Note that state contains input."
+  (-> state
+      (update :step inc)
+      (-check-global-controls)
+      (-check-player-controls)
+      (update :ents #(mapv ents/integrate %))
+      (assoc-in [:camera :pos] (get-in state [:ents 0 :pos]))
+      (assoc-in [:camera :dir] (get-in state [:ents 0 :dir]))
+      ))
 
 (defn loop-game! [state]
   "ie. start game, run"
   (let [t1 (System/nanoTime)
         ; not perfect input logic in respect to game paused for now
-        input (mapv input/map-input (get-input-queue! true))
+        input (mapv input/awt-event-obj->map (get-input-queue! true))
         next-state (if *paused* state (-iterate (assoc state :input input)))
         _ (-paint-via-state! next-state)
         t2 (System/nanoTime)
@@ -190,5 +197,4 @@
 (defn game! [] (loop-game! state-0))
 
 (defn -main [& args] (do (open-window!) (loop-game! state-0)))
-
 
