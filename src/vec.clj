@@ -46,6 +46,13 @@
     [(+ (center 0) (* cos dx) (- (* sin dy)))
      (+ (center 1) (* sin dx) (+ (* cos dy)))]))
 
+(defn add-rel-deg [ent key degrees magnitude]
+  "Update an entities pos/vel/acc in a direction which is relative to its current direction. 0 degrees
+  means forward, 90 is to the left, etc.
+
+  ie. (add-rel-deg {:pos [20 20] :dir 30} :pos -90 10)"
+  (update ent key matrix/add (vec/from-polar-deg (+ (:dir ent) degrees) magnitude)))
+
 ;;;;;;;;;;;;;;
 
 (defn cam->window [point cam-width cam-height]

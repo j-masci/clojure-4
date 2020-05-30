@@ -1,200 +1,91 @@
 (ns _core
   (:require
-    graphics
-    utils
+    colors
     ents
+    game
+    globals
+    graphics
     input
-    shapes
-    vec
     mock
-    [seesaw.core :as ss]
-    [clojure.data.json :as json]
-    [clojure.pprint]
-    [clojure.core.matrix :as matrix]
-    [seesaw.graphics :as gr]
-    )
-  (:use globals))
+    shapes
+    utils
+    vec
+    [seesaw.core :as ss]))
 
-(def *updates-per-second* 60)
+(def *window-has-been-initialized*
+  "Will check if this is false to lazy-init the window when opening it.
 
-(def *paused* false)
+  init-window! does not first check this, since we may want to re-init the window."
+  (atom false))
 
-(def state-0
-  "Initial state. Immutable."
-  {:step       0
-   :delta-time 0
-   :input      []
-   :config     {}
-   :camera     {:pos  [0 0]
-                :dir  90
-                :zoom 1.0}
-   ; for now, player must be the first entity
-   :ents       [
-                (ents/ent :player
-                          :dir 45
-                          :pos [0.0 0.0]
-                          :vel [0.0 0.0]
-                          :acc [0.0 0.0]
-                          :shapes (concat [
-                                           (shapes/create-circle [0 16] 4)
-                                           (shapes/create-circle [-10 -16] 4)
-                                           (shapes/create-circle [-10 16] 4)
-                                           (shapes/create-circle [10 16] 4)
-                                           (shapes/create-circle [10 -16] 4)]
-                                          (shapes/points->lines [[-10 -16]
-                                                                 [-10 16]
-                                                                 [10 16]
-                                                                 [10 -16]])))
-
-                (ents/ent :grid-lines
-                          :shapes [
-                                   ; y-axis, grey
-                                   (assoc (shapes/create-line [-1000 0] [1000 0]) :color [100 100 100 255])
-                                   ; x axis, black
-                                   (assoc (shapes/create-line [0 -1000] [0 1000]) :color (colors/rgba :black))])
-                ; a circle in the first quadrant with a line pointing towards the origin
-                ;(ents/ent :thing
-                ;          :dir 225
-                ;          :pos [250 250]
-                ;          :shapes [(shapes/create-circle [0 0] 30)
-                ;                   (shapes/create-line [0 0] [0 250])])
-                ; simple shapes on each axis
-                mock/ent0
-                mock/ent1
-                mock/ent2
-                mock/ent3]})
-
-; good for testing/repl
-(defn player [] (get-in state-0 [:ents 0]))
-
-; for debugging
-(def -all-states (atom []))
-
-(defn dump-state! [state]
-  (let [timestamp (int (/ (System/currentTimeMillis) 1000))
-        content (with-out-str (json/pprint state))
-        _ (println "--DUMPING STATE--" (count content))]
-    (spit (str "debug/states-" timestamp ".txt") content)))
-
-(defn -check-global-controls [state]
-  (when (input/is-key-up (:input state) "f1") (println "Ok what?"))
-  (when (input/is-key-up (:input state) "f2") (dump-state! @-all-states))
-  (when (input/is-key-up (:input state) "f3") (dump-state! (last @-all-states)))
-  (if (input/is-key-up (:input state) "f5") state-0 state))
-
-; should we define listeners as data ?? ya probably
-(def listener-eg {:type :key-up :text "w" :active true :callback (fn [state] (-> state))})
-
-(defn add-rel-deg [ent key degrees magnitude]
-  "Update an entities pos/vel/acc in a direction which is relative to its current direction. 0 degrees
-  means forward, 90 is to the left, etc."
-  (update ent key matrix/add (vec/from-polar-deg (+ (:dir ent) degrees) magnitude)))
-
-(defn -check-player-controls [state]
-  (cond-> state
-
-          (input/is-key-down (:input state) "up") (update :camera add-rel-deg :pos 0 10)
-          (input/is-key-down (:input state) "left") (update :camera add-rel-deg :pos 90 10)
-          (input/is-key-down (:input state) "down") (update :camera add-rel-deg :pos 180 10)
-          (input/is-key-down (:input state) "right") (update :camera add-rel-deg :pos -90 10)
-
-          ;(input/is-key-down (:input state) "q") (update-in [:camera :dir] #(- % 2))
-          ;(input/is-key-down (:input state) "e") (update-in [:camera :dir] #(+ % 2))
-
-          (input/is-key-down (:input state) "w") (update-in [:ents 0] add-rel-deg :vel 0 5)
-          (input/is-key-down (:input state) "a") (update-in [:ents 0] #(update % :dir (fn [dir] (+ dir 5))))
-          (input/is-key-down (:input state) "s") (update-in [:ents 0] add-rel-deg :vel 180 5)
-          (input/is-key-down (:input state) "d") (update-in [:ents 0] #(update % :dir (fn [dir] (- dir 5))))
-          (input/is-key-down (:input state) "space") (update-in [:ents 0] #(assoc % :vel [0 0]))
-          ))
-
-(defn draw-absolute-line
-  ([g2d p1 p2] (draw-absolute-line g2d p1 p2 [255 255 255 255]))
-  ([g2d p1 p2 rgba] (gr/draw g2d (gr/line (p1 0) (p1 1) (p2 0) (p2 1)) (utils/gr.style rgba))))
-
-(defn draw-string
-  [g2d x y str]
-  (.drawString g2d str x y))
-
-(defn -paint! [state canvas g2d]
-  (let [ww graphics/window-width
-        w2 (int (/ ww 2))
-        wh graphics/window-height
-        h2 (int (/ wh 2))]
-    ; does nothing ?
-    (draw-absolute-line g2d [0 h2] [ww h2] (colors/rgba :green1))
-    (draw-absolute-line g2d [w2 0] [w2 wh] (colors/rgba :greenyellow))
-    ; debugging stuff
-    (draw-string g2d 5 20 (with-out-str (clojure.pprint/pprint (select-keys state [:step :camera]))))
-    (draw-string g2d 5 40 (with-out-str (clojure.pprint/pprint (-> state (:input)))))
-    (draw-string g2d 5 60 (with-out-str (clojure.pprint/pprint (-> state (:ents) (get 0) (dissoc :shapes)))))
-    ; entities
-    (doseq [ent (:ents state)] (ents/draw! state ent canvas g2d))
-    ))
-
-(defn -paint-via-state! [state]
-  "paint state to the screen"
-  (graphics/paint-given-fn! (fn [canvas g2d]
-                              (-paint! state canvas g2d))))
-
-(def -*input-queue*
-  "vector of input events to process on next update"
-  (atom []))
-
-(defn get-input-queue!
-  "get queued inputs as a vector, and optionally reset the queue (side effect)"
-  ([] (get-input-queue! false))
-  ([reset]
-   (let [queue @-*input-queue*]
-     (when reset (reset! -*input-queue* []))
-     queue)))
-
-(defn -queue-input! [e] (swap! -*input-queue* conj e))
-
-(ss/listen graphics/canvas
-           :mouse-entered -queue-input!
-           :mouse-motion -queue-input!)
-
-; keys, focus, and mouse wheel, but not mouse entered
-(ss/listen graphics/frame
-           ; :mouse-motion -queue-input!
-           :focus-gained -queue-input!
-           :mouse-wheel-moved -queue-input!
-           :key -queue-input!)
-
-(defn -iterate [state]
-  "Get the next state via the current state. A pure function. Note that state contains input."
-  (-> state
-      (update :step inc)
-      (-check-global-controls)
-      (-check-player-controls)
-      (update :ents #(mapv ents/integrate %))
-      (assoc-in [:camera :pos] (get-in state [:ents 0 :pos]))
-      (assoc-in [:camera :dir] (get-in state [:ents 0 :dir]))
-      ))
-
-(defn loop-game! [state]
-  "ie. start game, run"
-  (let [t1 (System/nanoTime)
-        ; not perfect input logic in respect to game paused for now
-        input (mapv input/awt-event-obj->map (get-input-queue! true))
-        next-state (if *paused* state (-iterate (assoc state :input input)))
-        _ (-paint-via-state! next-state)
-        t2 (System/nanoTime)
-        diff (- t2 t1)
-        sleep-for-ns (- (utils/nano-seconds-per-frame *updates-per-second*) diff)]
-    (do
-      (if-not *paused* (swap! -all-states conj next-state))
-      (when (> sleep-for-ns 0) (Thread/sleep (long (/ sleep-for-ns 1000000))))
-      (recur next-state))))
+(defn init-window! []
+  "Initializes the jframe, jpanel, etc. Intentionally not run every time
+  we open the REPL."
+  (reset! *window-has-been-initialized* true)
+  (let [instances (graphics/create-window-instances
+                    (fn [canvas g2d]
+                      (let [state (deref globals/*state-to-paint*)]
+                        (game/paint! state canvas g2d))))
+        ; takes a AWTEvent instance, converts it to a map, and then registers it
+        queue-input! (fn [e]
+                       (globals/queue-input!
+                         (input/awt-event-obj->map e)))]
+    (ss/listen (:canvas instances)
+               :mouse-entered queue-input!
+               :mouse-motion queue-input!)
+    (ss/listen (:frame instances)
+               :focus-gained queue-input!
+               :mouse-wheel-moved queue-input!
+               :key queue-input!)
+    (reset! globals/*window-instances* instances)))
 
 (defn open-window! []
-  (ss/invoke-later (ss/show! graphics/frame)))
+  (if-not @*window-has-been-initialized* (init-window!))
+  (ss/invoke-later (ss/show! (globals/get-frame))))
 
 (defn close-window! []
-  (ss/invoke-later (ss/hide! graphics/frame)))
+  (ss/invoke-later (ss/hide! (globals/get-frame))))
 
-(defn game! [] (loop-game! state-0))
+(def *loop-next-state-callback*
+  "A placeholder no-op. You can re-def this in the REPL to test certain things.
+  Accepts state and must return it."
+  identity)
 
-(defn -main [& args] (do (open-window!) (loop-game! state-0)))
+(defn loop!
+  "Very side-effecty. Gets the next state, sleeps a bit, resets the
+  input queue, tracks the new state for debugging, optionally paints,
+  then recurs unless we're paused. Optionally paints so that we can
+  test this without a window open if we want to."
+  ([state]
+   (loop! state true))
+  ([state bool-repaint]
+   (let [next-state (utils/do-fn-and-maybe-sleep
+                      ; the function computes and returns next state, and maybe paints
+                      #(let [next-state (game/update* state (globals/get-and-reset-input-queue!))]
+                         (when bool-repaint (globals/paint-given-state! next-state))
+                         (*loop-next-state-callback* next-state))
+                      (globals/time-per-update-ms))]
+     (swap! globals/*all-states* conj next-state)
+     (if (game/is-paused next-state) (println "Paused.") (recur next-state bool-repaint)))))
+
+(defn resume! []
+  "Resume game after its been paused.
+
+  There is no pause function currently. To pause the game, press escape
+  while its running (if that doesn't work, check input handlers in game.clj)"
+  (loop! (last (deref globals/*all-states*)) true))
+
+(defn start! []
+  "When in the REPL, only call this if you manually called open-window! first.
+
+  However, you normally don't need to call this function, just call -main instead.
+
+  To start the game after it has been paused, use resume! instead."
+  (loop! (game/get-initial-state) true))
+
+(defn -main [& args]
+  "Open the window and start the game."
+  (init-window!)
+  (open-window!)
+  (start!))
 

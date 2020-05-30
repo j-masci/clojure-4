@@ -1,12 +1,10 @@
 (ns ents
   (:require shapes
             vec
-            [clojure.core.matrix :as m]
-            [clojure.spec.alpha :as s]
-            [seesaw.graphics :as gr])
-  (:use globals))
+            [clojure.core.matrix :as m]))
 
 (defn ent [type & keyvals]
+  "Creates an entity which is simply a map."
   (merge {:type   type
           :shapes []
           :pos    [0 0]
@@ -15,9 +13,15 @@
           :dir    0} (apply hash-map keyvals)))
 
 (defn integrate [ent]
+  "ie. semi-implicit Euler or something (or do I have it backwards? It
+  makes no difference right now)."
   (-> ent
       (assoc :vel (m/add (:vel ent) (:acc ent)))
       (assoc :pos (m/add (:pos ent) (:vel ent)))))
+
+;(defn ent-plus-deg [ent deg] (+ (:dir ent) deg))
+;(ent-plus-deg ent 90)
+;(+ (:dir ent) 90)
 
 ; -- Coordinate Conversions --
 
@@ -31,6 +35,7 @@
       (align-all-shapes)))
 
 (defn draw! [state ent canvas g2d]
+  "Draw an entity."
   (-> ent
       (ent-and-all-shapes-to-window-coords (:camera state))
       ((fn [e] (doseq [shape (:shapes e)] (shapes/draw! shape g2d))))))

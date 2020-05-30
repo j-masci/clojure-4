@@ -114,32 +114,25 @@
           (fn [shape g2d] (:type shape)))
 
 (defmethod draw! :line [shape g2d]
-  (let [x1 (get-in shape [:p1 0])
-        y1 (get-in shape [:p1 1])
-        x2 (get-in shape [:p2 0])
-        y2 (get-in shape [:p2 1])
+  "Draws a line."
+  (let [line (gr/line ((:p1 shape) 0) ((:p1 shape) 1) ((:p2 shape) 0) ((:p2 shape) 1))
         color (apply seesaw.color/color (colors/check (:color shape)))
-        width (:width shape 1)
-        line (gr/line x1 y1 x2 y2)
-        ; todo: both foreground/background?
         style (gr/style :foreground color
                         :background color
-                        :stroke (gr/stroke :width width))]
+                        :stroke (gr/stroke :width (:width shape 1)))]
     (gr/draw g2d line style)))
 
 (defmethod draw! :circle [shape g2d]
-  (let [x (get-in shape [:center 0])
-        y (get-in shape [:center 1])
-        radius (:radius shape)
+  "Draws a circle."
+  (let [circle (gr/circle ((:center shape) 0) ((:center shape) 1) (:radius shape))
         color (apply seesaw.color/color (colors/check (:color shape)))
-        width (:width shape 1)
-        circle (gr/circle x y radius)
         style (gr/style :foreground color
                         :background (seesaw.color/color 0 0 0 0)
-                        :stroke (gr/stroke :width width))]
+                        :stroke (gr/stroke :width (:width shape 1)))]
     (gr/draw g2d circle style)))
 
 (defmethod draw! :text [shape g2d]
+  "Draws text."
   (.drawString g2d (:text shape) (get-in shape [:pos 0]) (get-in shape [:pos 1])))
 
 ; --- TRANSFORMATIONS ---
@@ -153,8 +146,6 @@
 (defn -align-shape-to-ent [shape ent]
   (-> shape
       (-rotate-shape-from-north-to-dir (:dir ent))
-      ; this is the fucking error I think:
-      ; FLIP FUCKING Y!!!
       (flip-y)
       (transform (:pos ent))))
 
