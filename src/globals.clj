@@ -3,12 +3,12 @@
   (:require graphics))
 
 ; todo: can't we just have this live inside state?
-(def *updates-per-second* 60)
+(def *updates-per-second* 20)
 
 (defn time-per-update-ms []
   "The time in miliseconds (float) that is given to each frame
   update and/or frame rendering."
-  (/ 1 *updates-per-second*))
+  (/ 1000 *updates-per-second*))
 
 (def *window-instances*
   "A map of lazy-loaded AWT objects, ie. jframe, jpanel, and a canvas."

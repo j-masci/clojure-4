@@ -1,4 +1,5 @@
 (ns game
+  "init, update, draw, etc."
   (:require colors
             ents
             globals
@@ -12,6 +13,11 @@
 
 (defn get-camera []
   {:pos [0 0] :dir 0 :zoom 0})
+
+(def ent-process
+  {:types []
+   :f (fn [e]
+        ())})
 
 (defn get-empty-state []
   "Minimal-ish initial state (no ents added yet)."
@@ -58,6 +64,16 @@
   {:pred   (fn [state] (true))
    :action (fn [state] state)})
 
+(defn inc-by [x] (fn [i] (+ i x)))
+
+; partial?
+;(defmacro something-by [op x]
+;  ())
+; (something-by + 5)
+
+; does this already work?
+; (partial + 5)
+
 (defn handle-input [state]
   (let [kd (fn [text] (input/is-key-down (:input state) text))]
     (cond-> state
@@ -66,9 +82,9 @@
             (kd "down") (update :camera vec/add-rel-deg :pos 180 10)
             (kd "right") (update :camera vec/add-rel-deg :pos -90 10)
             (kd "w") (update-in [:ents 0] vec/add-rel-deg :pos 0 10)
-            (kd "a") (update-in [:ents 0] #(update % :dir (fn [dir] (+ dir 5))))
+            (kd "a") (update-in [:ents 0] #(update % :dir (partial + 5)))
             (kd "s") (update-in [:ents 0] vec/add-rel-deg :pos 0 -5)
-            (kd "d") (update-in [:ents 0] #(update % :dir (fn [dir] (- dir 5))))
+            (kd "d") (update-in [:ents 0] #(update % :dir (partial + -5)))
             (kd "space") (update-in [:ents 0] #(assoc % :vel [0 0]))
             (kd "f1") (#(do (utils/log-debug! (deref globals/*all-states*)) %))
             (kd "f2") (#(do (utils/log-debug! (last (deref globals/*all-states*))) %))

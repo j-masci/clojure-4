@@ -1,9 +1,8 @@
 (ns shapes
   "Shapes are maps containing only data. Entities which are drawn will have a vector
-  of shapes, which describes how to draw the entity centered on the origin with north being
-  the forward facing direction. In order to draw the shapes on the screen, relative to the camera,
-  we'll apply a number of transformations (transform/rotate/scale) to every shape to convert
-  it to window coordinates and then draw it."
+  of shapes, which describes how to draw the entity in \"local coordinates\".
+  A complex process takes shapes drawn in local coords and an entities position
+  and direction to convert into camera and then window coords."
   (:require [seesaw.graphics :as gr]
             [clojure.core.matrix :as matrix]
             [incanter.core :as incanter]
@@ -48,7 +47,8 @@
 
 ; -- TRANSFORM --
 
-(defmulti flip-y (fn [shape] (:type shape)))
+(defmulti flip-y "Negate y-coordinates"
+          (fn [shape] (:type shape)))
 
 (defmethod flip-y :line [shape]
   (-> shape
@@ -65,7 +65,8 @@
 
 ; -- TRANSFORM --
 
-(defmulti transform (fn [shape offset-v] (:type shape)))
+(defmulti transform "Move a shape"
+          (fn [shape offset-v] (:type shape)))
 
 (defmethod transform :line [shape offset-v]
   (-> shape
@@ -99,13 +100,14 @@
 ; -- SCALE --
 ; not done
 
-(defmulti scale (fn [shape amt] (:type shape)))
+(defmulti scale
+          (fn [shape amt] (:type shape)))
 
 (defmethod scale :line [shape amt]
   (-> shape))
 
 (defmethod scale :circle [shape amt]
-  (-> shape))
+  (update shape :radius #(* % amt)))
 
 ; -- DRAW --
 
